@@ -7,16 +7,15 @@
 #include <sys/socket.h>
 #include <unistd.h> // read(), write(), close()
 #include "../inc/p1.h"
-#define MAX 80
+#define MAX 10
 #define PORT 8080
 #define SA struct sockaddr
+
 void func(int sockfd)
 {
 	char buff[MAX];
 	int n;
-	printf("estoy enviando en el puerto %d", sockfd);
-
-		for (;;)
+	for (;;)
 	{
 		bzero(buff, sizeof(buff));
 		printf("Enter the string : ");
@@ -27,7 +26,8 @@ void func(int sockfd)
 		bzero(buff, sizeof(buff));
 		read(sockfd, buff, sizeof(buff));
 		printf("From Server : %s", buff);
-		if ((strncmp(buff, "exit", 4)) == 0) {
+		if ((strncmp(buff, "exit", 4)) == 0)
+		{
 			printf("Client Exit...\n");
 			break;
 		}
@@ -41,31 +41,7 @@ int main()
 
 	// socket create and verification
 	sockfd = openSocketCliente(PORT);
-		/*socket(AF_INET, SOCK_STREAM, 0);
-		if (sockfd == -1) {
-			printf("socket creation failed...\n");
-			exit(0);
-		}
-		else
-			printf("Socket successfully created..\n");
-		bzero(&servaddr, sizeof(servaddr));
-
-		// assign IP, PORT
-		servaddr.sin_family = AF_INET;
-		servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-		servaddr.sin_port = htons(PORT);
-
-		// connect the client socket to server socket
-		if (connect(sockfd, (SA*)&servaddr, sizeof(servaddr))
-			!= 0) {
-			printf("connection with the server failed...\n");
-			exit(0);
-		}
-		else
-			printf("connected to the server..\n");
-		*/
-		// function for chat
-		func(sockfd);
+	func(sockfd);
 
 	// close the socket
 	close(sockfd);

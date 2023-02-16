@@ -2,3 +2,9 @@ capítulo 30 libro!!
 setsockopt
 
 https://git.eps.uam.es/groups/redes2/2023/2321/02
+
+rm /dev/shm/nombredelsemaforo
+
+Necesario crear una documentación correcta.
+
+Crear comentarios con doxygen

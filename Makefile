@@ -1,12 +1,21 @@
 NAME1 			= client
 NAME2 			= server
-NAMEEXTRA 		= wrapper
+#NAMEEXTRA 		= wrapper
+WRAPPER			= wrapper
+WRAPPERNAME		= $(addsuffix .a, $(WRAPPER))
 
+#AR
+AR				= ar -rcs
+
+#INC
+INC 			= -I inc $(WRAPPERNAME)
 
 #SRC_DIR
 SRC_DIR		= src/
 #OBJ_DIR
 OBJ_DIR		= obj/
+#WRAPPER_DIR
+WRAPPER_DIR = wrapper/
 #COLORS
 
 DEFAULT		=	\033[0;39m
@@ -26,30 +35,33 @@ RM			= rm -f
 #SRCS
 SRCCL 		= 	$(addprefix $(SRC_DIR), $(addsuffix .c, $(NAME1)))
 SRCSV 		= 	$(addprefix $(SRC_DIR), $(addsuffix .c, $(NAME2)))
-SRCEXTRA 	= 	$(addprefix $(SRC_DIR), $(addsuffix .c, $(NAMEEXTRA)))
+#SRCEXTRA 	= 	$(addprefix $(SRC_DIR), $(addsuffix .c, $(NAMEEXTRA)))
+SRCWRAPPER 	= 	$(addprefix $(WRAPPER_DIR), $(addsuffix .c, $(WRAPPER)))
 
 
 #OBJS
 OBJCL 			= 	$(addprefix $(OBJ_DIR), $(addsuffix .o, $(NAME1)))
 OBJSV 			= 	$(addprefix $(OBJ_DIR), $(addsuffix .o, $(NAME2)))
-OBJEXTRA 		= 	$(addprefix $(OBJ_DIR), $(addsuffix .o, $(NAMEEXTRA)))
+#OBJEXTRA 		= 	$(addprefix $(OBJ_DIR), $(addsuffix .o, $(NAMEEXTRA)))
+OBJWRAPPER 		= 	$(addprefix $(OBJ_DIR), $(addsuffix .o, $(WRAPPER)))
 
 begin:
 	@mkdir -p obj
+	@make -s wrapper.a
 	@make -s all
-all: $(NAME1) $(NAME2)
+all: $(NAME1) $(NAME2) 
 
-$(NAME1): $(OBJCL) $(OBJEXTRA)
+$(NAME1): $(OBJCL)  #$(OBJEXTRA) 
+	echo "##############################"
+	echo "$(CYAN)     Generating $@ $(DEFAULT)"
+	$(CC) $(OBJCL) $(INC) -o $(NAME1)
+
+$(NAME2): $(OBJSV) #$(OBJEXTRA)
 	echo "##############################"
 	echo "$(CYAN)       Generating $@ $(DEFAULT)"
-	$(CC) $(OBJCL) $(OBJEXTRA) -o $(NAME1)
+	$(CC) $(OBJSV) $(INC) -o $(NAME2)
 
-$(NAME2): $(OBJSV) $(OBJEXTRA)
-	echo "##############################"
-	echo "$(CYAN)       Generating $@ $(DEFAULT)"
-	$(CC) $(OBJSV) $(OBJEXTRA) -o $(NAME2)
-
-$(OBJCL): $(SRCCL)
+$(OBJCL): $(SRCCL) 
 	echo "##############################"
 	echo "$(PURPLE)       Generating $@ $(DEFAULT)"
 	$(CC) $(CFLAGS) $< 
@@ -61,22 +73,32 @@ $(OBJSV): $(SRCSV)
 	$(CC) $(CFLAGS) $< 
 	@mv $(NAME2).o obj/
 
-$(OBJEXTRA): $(SRCEXTRA)
-	echo "##############################"
-	echo "$(PURPLE)       Generating $@ $(DEFAULT)"
+$(WRAPPERNAME): $(OBJWRAPPER)
+	@$(AR) $(WRAPPERNAME) $(OBJWRAPPER)
+
+$(OBJWRAPPER):	$(SRCWRAPPER)
 	$(CC) $(CFLAGS) $< 
 	$(eval EXTRA := $(<:.c=.o))
-	@mv $(EXTRA:src/%=%) obj/
+	@mv $(EXTRA:wrapper/%=%) obj/
+
+
+#$(OBJEXTRA): $(SRCEXTRA)
+#	echo "##############################"
+#	echo "$(PURPLE)       Generating $@ $(DEFAULT)"
+#	$(CC) $(CFLAGS) $< 
+#	$(eval EXTRA := $(<:.c=.o))
+#	@mv $(EXTRA:src/%=%) obj/
 
 
 clean:
-	@$(RM) $(OBJBC) $(OBJBS) $(OBJEXTRA) $(OBJCL) $(OBJSV)
+	@$(RM) $(OBJBC) $(OBJBS) $(OBJEXTRA) $(OBJCL) $(OBJSV) $(OBJWRAPPER)
 	@echo "$(RED) DELETED $(OBJEXTRA) $(OBJCL) $(OBJSV) $(DEFAULT)"
 
 fclean: clean
 	@$(RM) $(NAME1) $(NAME2) 
+	@$(RM) $(WRAPPERNAME)
 	@echo "$(RED) DELETED $(OBJEXTRA) $(NAME1) $(NAME2) $(DEFAULT)"
 
 re: fclean begin
 
-.PHONY: bonus begin all re fclean clean
+.PHONY: bonus begin all re fclean clean $(WRAPPERNAME)

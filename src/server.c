@@ -73,7 +73,7 @@ int main()
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
+#include <sys/socket.h>created..
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -148,7 +148,7 @@ int main()
 	memset(&serverAddr, '\0',
 		   sizeof(serverAddr));
 
-	// Assign port number and IP address
+	// Assign port number created..and IP address
 	// to the socket created
 	serverAddr.sin_family = AF_INET;
 	serverAddr.sin_port = htons(PORT);

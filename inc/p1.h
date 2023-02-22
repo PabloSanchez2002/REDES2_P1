@@ -26,7 +26,9 @@
 #include <semaphore.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-
+#include <errno.h>
+#include <assert.h>
+#include <sys/sendfile.h>
 
 #define MAX 8000
 #define MAX_LISTENERS 5

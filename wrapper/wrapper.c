@@ -22,6 +22,7 @@ int createSocket()
 	}
 	else
 		printf("Creating socket:      \033[1;92m✓\033[0;39m\n");
+    setsockopt(socketfd, 0, SO_REUSEADDR, NULL, 0);
     return socketfd;
 }
 

@@ -1,6 +1,6 @@
 NAME1 			= client
 NAME2 			= server
-#NAMEEXTRA 		= wrapper
+NAMEEXTRA 		= picohttpparser
 WRAPPER			= wrapper
 WRAPPERNAME		= $(addsuffix .a, $(WRAPPER))
 
@@ -35,14 +35,14 @@ RM			= rm -f
 #SRCS
 SRCCL 		= 	$(addprefix $(SRC_DIR), $(addsuffix .c, $(NAME1)))
 SRCSV 		= 	$(addprefix $(SRC_DIR), $(addsuffix .c, $(NAME2)))
-#SRCEXTRA 	= 	$(addprefix $(SRC_DIR), $(addsuffix .c, $(NAMEEXTRA)))
+SRCEXTRA 	= 	$(addprefix $(SRC_DIR), $(addsuffix .c, $(NAMEEXTRA)))
 SRCWRAPPER 	= 	$(addprefix $(WRAPPER_DIR), $(addsuffix .c, $(WRAPPER)))
 
 
 #OBJS
 OBJCL 			= 	$(addprefix $(OBJ_DIR), $(addsuffix .o, $(NAME1)))
 OBJSV 			= 	$(addprefix $(OBJ_DIR), $(addsuffix .o, $(NAME2)))
-#OBJEXTRA 		= 	$(addprefix $(OBJ_DIR), $(addsuffix .o, $(NAMEEXTRA)))
+OBJEXTRA 		= 	$(addprefix $(OBJ_DIR), $(addsuffix .o, $(NAMEEXTRA)))
 OBJWRAPPER 		= 	$(addprefix $(OBJ_DIR), $(addsuffix .o, $(WRAPPER)))
 
 begin:
@@ -51,15 +51,15 @@ begin:
 	@make -s all
 all: $(NAME1) $(NAME2) 
 
-$(NAME1): $(OBJCL)  #$(OBJEXTRA) 
+$(NAME1): $(OBJCL)  $(OBJEXTRA) 
 	echo "##############################"
 	echo "$(CYAN)     Generating $@ $(DEFAULT)"
-	$(CC) $(OBJCL) $(INC) -o $(NAME1)
+	$(CC) $(OBJCL) $(OBJEXTRA) $(INC) -o $(NAME1)
 
-$(NAME2): $(OBJSV) #$(OBJEXTRA)
+$(NAME2): $(OBJSV) $(OBJEXTRA)
 	echo "##############################"
 	echo "$(CYAN)       Generating $@ $(DEFAULT)"
-	$(CC) $(OBJSV) $(INC) -o $(NAME2)
+	$(CC) $(OBJSV) $(OBJEXTRA) $(INC) -o $(NAME2)
 
 $(OBJCL): $(SRCCL) 
 	echo "##############################"
@@ -82,12 +82,12 @@ $(OBJWRAPPER):	$(SRCWRAPPER)
 	@mv $(EXTRA:wrapper/%=%) obj/
 
 
-#$(OBJEXTRA): $(SRCEXTRA)
-#	echo "##############################"
-#	echo "$(PURPLE)       Generating $@ $(DEFAULT)"
-#	$(CC) $(CFLAGS) $< 
-#	$(eval EXTRA := $(<:.c=.o))
-#	@mv $(EXTRA:src/%=%) obj/
+$(OBJEXTRA): $(SRCEXTRA) inc/picohttpparser.h
+	echo "##############################"
+	echo "$(PURPLE)       Generating $@ $(DEFAULT)"
+	$(CC) $(CFLAGS) $< 
+	$(eval EXTRA := $(<:.c=.o))
+	@mv $(EXTRA:src/%=%) obj/
 
 
 clean:

@@ -32,13 +32,12 @@ int createSocket()
  * @param socketfd file descriptor of the socket to bind
  * @return OK or ERROR
  */
-int bindSocket(int socketfd, int port)
+int bindSocket(int socketfd)
 {
     struct sockaddr_in servaddr;
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    printf("&&&&&&&&&&&&&%d\n", port);
-	servaddr.sin_port = htons(port);
+	servaddr.sin_port = htons(PORT);
 	if ((bind(socketfd, (SA*)&servaddr, sizeof(servaddr))) != 0) {
         return BASIC_ERROR;
 	}
@@ -129,7 +128,7 @@ int connectSocket(int socketfd)
  * If everything went okey it will store: ret[0] = our socketfd, ret[1] = client socket fd.
  * If flag is for example BIND -> Accept isnt called, then ret[1] will have a 0 value.
  */
-int *serverSocket(int flag, int port)
+int *serverSocket(int flag)
 {
 
     int *ret = (int *) malloc(sizeof(int)*2);
@@ -144,7 +143,7 @@ int *serverSocket(int flag, int port)
         return ret;
     }
     
-    if (flag >= BIND && (bindSocket(ret[0], port) == -1))//0 on success -1 else
+    if (flag >= BIND && (bindSocket(ret[0]) == -1))//0 on success -1 else
     {
         ret[1] = BINDSOCKETERR;
         return ret;
@@ -190,7 +189,7 @@ int freeSocket(int *info)
  * @param flag The value of flag is specified in p1.h (CLIENT, CREATE, BIND, LISTEN, ACCEPT) -> (1,2,3,4,5)
  * @return NULL if error or the file descriptors correctly opened
  */
-int *initserverSocket(int flag, int port)
+int *initserverSocket(int flag)
 {
     int *ret;
     if (flag < 1 || flag > 5)
@@ -198,7 +197,7 @@ int *initserverSocket(int flag, int port)
         printf("\033[0;91mError: \033[0;39m Wrong Flag\n");
         return NULL;
     }
-    if(!(ret=serverSocket(flag, port)))
+    if(!(ret=serverSocket(flag)))
     {
         printf("\033[0;91mError: \033[0;39m Couldn't allocate memory\n");
         return NULL;

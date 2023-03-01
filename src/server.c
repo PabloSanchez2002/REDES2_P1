@@ -4,11 +4,9 @@
 #include "../inc/picohttpparser.h"
 
 // Function designed for chat between client and server.
-
-
 void func(int connfd)
 {
-	char buf[4096];
+	char buf[4096], method2[10];
 	const char *method, *path;
 	int pret, minor_version, f, size;
 	struct phr_header headers[100];
@@ -48,20 +46,30 @@ void func(int connfd)
 		printf("%.*s: %.*s\n", (int)headers[i].name_len, headers[i].name,
 			   (int)headers[i].value_len, headers[i].value);
 	}
-	char *addr, source[80] = "templates";
+
+	/*Store request method*/
+	sprintf(method2, "%.*s", (int)method_len, method);
+
+	char *addr, source[] = "templates";
 
 	if ((int)path_len > 1)
 	{
-		printf("\n\nsource:%s\n\n", source);
 		printf("\n\nPath:%.*s\n\n", (int)path_len, path);
 		addr = (char *)malloc((int)path_len);
 		memcpy(addr, path, (int)path_len);
 		strcat(source, addr);
 		f = open(source, O_RDONLY);
+		if(f == -1){
+			printf("%s FALLO", source);
+		}
 	}
 	else
 	{
 		f = open("templates/index.html", O_RDONLY);
+		if (f == -1)
+		{
+			printf("templates FALLO");
+		}
 	}
 
 	fstat(f, &st);
@@ -86,38 +94,31 @@ void *pthread_main(void *socketfd)
 	while(1){
 		connfd = acceptClient(serverfd);
 		func(connfd);
+		close(connfd);
 	}
-	
 }
 
-int main()
-{
+int main(){
 
 	int *info;
-	info = initserverSocket(LISTEN, 8080);
+	info = initserverSocket(LISTEN);
 	if (!info)
 		exit(0);
 
+	//#####################
 	pthread_t *threads;
-	threads = (pthread_t*) malloc(sizeof(pthread_t)*5);
-	if ((mutex = sem_open("mutex", O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 1)) == SEM_FAILED)
-	{
-		perror("sem_create");
-		exit(EXIT_FAILURE);
-	}
+	threads = (pthread_t*) malloc(sizeof(pthread_t)*2);
 
-	for(int i = 0;i<5;i++)
+	for(int i = 0;i<2;i++)
 	{
 		pthread_create(&threads[i], NULL,pthread_main, (void *) &info[0]);
 	}
-	for(int i=0;i<5;i++)
+	for(int i=0;i<2;i++)
 	{
 		pthread_join(threads[i], NULL);
 	}
-	sem_close(mutex);
-	sem_unlink("mutex");
-	free(threads);
+	// #####################
 
-	func(acceptClient(info[0]));
+	free(threads);
 	freeSocket(info);
 }

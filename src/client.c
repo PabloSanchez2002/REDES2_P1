@@ -25,7 +25,7 @@ void func(int sockfd)
 int main()
 {
 	int *info;
-	info = initserverSocket(CLIENT, 8080);
+	info = initserverSocket(CLIENT);
 	if (!info)
 		exit(0);
 	func(info[0]);

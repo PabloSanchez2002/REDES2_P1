@@ -13,7 +13,6 @@ void func(int connfd)
 	struct stat st;
 	size_t buflen = 0, prevbuflen = 0, method_len, path_len, num_headers;
 	ssize_t rret;
-
 	while (1)
 	{
 		/* read the request */
@@ -47,7 +46,25 @@ void func(int connfd)
 		printf("%.*s: %.*s\n", (int)headers[i].name_len, headers[i].name,
 			   (int)headers[i].value_len, headers[i].value);
 	}
-	f = open("templates/index.html", O_RDONLY);
+	//printf("\n ###########Path is: x%.*sx", (int)path_len, path);
+	char *addr, source[80] = "templates";
+
+	if ((int)path_len > 1)
+	{
+		printf("Nos vamos mi rey\n");
+		printf("\n\nsource:%s\n\n", source);
+		printf("\n\nPath:%.*s\n\n", (int)path_len, path);
+		addr = (char *)malloc((int)path_len);
+		memcpy(addr, path, (int)path_len);
+		strcat(source, addr);
+		f = open(source, O_RDONLY);
+	}
+	else
+	{
+		printf("Nos quedamos mi rey\n");
+		f = open("templates/index.html", O_RDONLY);
+	}
+
 	fstat(f, &st);
 	char buffer[500];
 	sprintf(buffer, "HTTP/1.1 200 OK\r\n\
@@ -59,7 +76,11 @@ Content-Length: %li\r\n\
 Content-Type: text/html\r\n\r\n", st.st_size);
 	write(connfd, buffer, strlen(buffer));
 	sendfile(connfd, f, NULL, st.st_size);
+	close(f);
+
+	func(connfd);
 }
+
 
 void *pthread_main(void *socketfd)
 {

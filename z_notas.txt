@@ -3,8 +3,24 @@ setsockopt
 
 https://git.eps.uam.es/groups/redes2/2023/2321/02
 
-rm /dev/shm/nombredelsemaforo
+rm /dev/shm/sem.mutex
 
 Necesario crear una documentación correcta.
 
 Crear comentarios con doxygen
+
+curls -X <options>
+
+1 Marzo:
+    Diferenciar metodos get/post/options
+    Comenzar servidor desde .conf
+    Ejecutar archivos .py y .php
+    Server con procesos vs hilos
+    Memoria
+    Cambiar printf por syslog
+
+    
+    
+    
+    
+    Mirarse lo del gitlab

@@ -32,6 +32,8 @@
 
 #define MAX 8000
 #define MAX_LISTENERS 5
+#define MAX_STRING 30
+#define MAX_STRING_LONG 200
 #define PORT 8080
 #define SA struct sockaddr
 
@@ -50,10 +52,10 @@
 #define LISTEN  4
 #define ACCEPT  5
 
-int *initserverSocket(int flag);
+int *initserverSocket(int flag, int socket);
 int freeSocket(int *info);
 int createSocket();
-int bindSocket(int socketfd);
+int bindSocket(int socketfd, int socket);
 int listenSocket(int socketfd);
 int acceptClient(int socketfd);
 int connectSocket(int socketfd);

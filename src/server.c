@@ -4,6 +4,8 @@
 #include "../inc/picohttpparser.h"
 
 // Function designed for chat between client and server.
+
+
 void func(int connfd)
 {
 	char buf[4096];
@@ -46,12 +48,10 @@ void func(int connfd)
 		printf("%.*s: %.*s\n", (int)headers[i].name_len, headers[i].name,
 			   (int)headers[i].value_len, headers[i].value);
 	}
-	//printf("\n ###########Path is: x%.*sx", (int)path_len, path);
 	char *addr, source[80] = "templates";
 
 	if ((int)path_len > 1)
 	{
-		printf("Nos vamos mi rey\n");
 		printf("\n\nsource:%s\n\n", source);
 		printf("\n\nPath:%.*s\n\n", (int)path_len, path);
 		addr = (char *)malloc((int)path_len);
@@ -61,7 +61,6 @@ void func(int connfd)
 	}
 	else
 	{
-		printf("Nos quedamos mi rey\n");
 		f = open("templates/index.html", O_RDONLY);
 	}
 
@@ -77,8 +76,6 @@ Content-Type: text/html\r\n\r\n", st.st_size);
 	write(connfd, buffer, strlen(buffer));
 	sendfile(connfd, f, NULL, st.st_size);
 	close(f);
-
-	func(connfd);
 }
 
 
@@ -86,19 +83,22 @@ void *pthread_main(void *socketfd)
 {
 	int serverfd = *((int *)socketfd);
 	int connfd;
-	connfd = acceptClient(serverfd);
-	func(connfd);
+	while(1){
+		connfd = acceptClient(serverfd);
+		func(connfd);
+	}
+	
 }
 
 int main()
 {
 
 	int *info;
-	info = initserverSocket(LISTEN);
+	info = initserverSocket(LISTEN, 8080);
 	if (!info)
 		exit(0);
 
-	/*pthread_t *threads;
+	pthread_t *threads;
 	threads = (pthread_t*) malloc(sizeof(pthread_t)*5);
 	if ((mutex = sem_open("mutex", O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 1)) == SEM_FAILED)
 	{
@@ -116,7 +116,7 @@ int main()
 	}
 	sem_close(mutex);
 	sem_unlink("mutex");
-	free(threads);*/
+	free(threads);
 
 	func(acceptClient(info[0]));
 	freeSocket(info);

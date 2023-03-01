@@ -4,6 +4,11 @@
         "p1.h": "c",
         "inet.h": "c",
         "stdlib.h": "c",
-        "unistd.h": "c"
+        "unistd.h": "c",
+        "assert.h": "c",
+        "typeinfo": "c",
+        "picohttpparser.h": "c",
+        "stat.h": "c",
+        "main.h": "c"
     }
 }

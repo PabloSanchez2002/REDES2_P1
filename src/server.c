@@ -50,9 +50,26 @@ void func(int connfd)
 
 	/*Store request method*/
 	sprintf(method2, "%.*s", (int)method_len, method);
-
-	//if(strcmp)
-
+	
+	/*Calls pertinent function*/
+	/*
+	if (strcmp(method2, "GET") == 0)
+	{
+		//process_GET();
+	}
+	else if (strcmp(method2, "POST") == 0)
+	{
+		//process_POST();
+	}
+	else if (strcmp(method2, "OPTIONS") == 0)
+	{
+		//process_OPTIONS();
+	}
+	else
+	{
+		//process_unsupported();
+	}
+	*/
 	char source[MAX_STRING] = "templates";
 
 	if ((int)path_len > 1)
@@ -141,7 +158,7 @@ int main(){
 		}
 	}
 
-	printf("\n%s\n%s\n%s\n%s\n",route, numCli, numPort, name);
+	//printf("\n%s\n%s\n%s\n%s\n",route, numCli, numPort, name);
 	info = initserverSocket(LISTEN, atoi(numPort));
 	if (!info)
 		exit(-1);

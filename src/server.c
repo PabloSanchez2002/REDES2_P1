@@ -51,14 +51,14 @@ void func(int connfd)
 	/*Store request method*/
 	sprintf(method2, "%.*s", (int)method_len, method);
 
-	char *addr, source[] = "templates";
+	//if(strcmp)
+
+	char source[MAX_STRING] = "templates";
 
 	if ((int)path_len > 1)
 	{
 		printf("\n\nPath:%.*s\n\n", (int)path_len, path);
-		addr = (char *)malloc((int)path_len);
-		memcpy(addr, path, (int)path_len);
-		strcat(source, addr);
+		strncat(source, path, (int)path_len);
 		f = open(source, O_RDONLY);
 		if(f == -1){
 			printf("%s FALLO\n", source);

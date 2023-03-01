@@ -27,7 +27,7 @@ PURPLE		=	\033[0;95m
 
 #COMPILATION
 CC			= gcc
-CFLAGS		= -c
+CFLAGS		= -c -g
 
 #OTHERS
 RM			= rm -f 

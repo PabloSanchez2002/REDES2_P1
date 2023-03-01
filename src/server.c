@@ -13,6 +13,7 @@ void func(int connfd)
 	struct stat st;
 	size_t buflen = 0, prevbuflen = 0, method_len, path_len, num_headers;
 	ssize_t rret;
+	
 	while (1)
 	{
 		/* read the request */
@@ -60,7 +61,7 @@ void func(int connfd)
 		strcat(source, addr);
 		f = open(source, O_RDONLY);
 		if(f == -1){
-			printf("%s FALLO", source);
+			printf("%s FALLO\n", source);
 		}
 	}
 	else
@@ -68,7 +69,7 @@ void func(int connfd)
 		f = open("templates/index.html", O_RDONLY);
 		if (f == -1)
 		{
-			printf("templates FALLO");
+			printf("templates FALLO\n");
 		}
 	}
 
@@ -101,19 +102,60 @@ void *pthread_main(void *socketfd)
 int main(){
 
 	int *info;
-	info = initserverSocket(LISTEN);
+	char line[MAX_STRING], route[MAX_CHAR], name[MAX_CHAR];
+	char numCli[MAX_CHAR], numPort[MAX_CHAR];
+	FILE *fp;
+	fp = fopen("config.conf", "r");
+	if (fp == NULL)
+	{
+		//syslog(LOG_ERR, "Error opening file server.conf: %d", errno);
+		return -1;
+	}
+	
+	//Configuracion del servidor
+	while (fgets(line, MAX_STRING, fp))
+	{
+		if (strncmp("server_root", line, strlen("server_root")) == 0)
+		{
+			strtok(line, " \n");
+			strtok(NULL, " \n");
+			sprintf(route, "%s", strtok(NULL, " \n"));
+		}
+		if (strncmp("max_clients", line, strlen("max_clients")) == 0)
+		{
+			strtok(line, " \n");
+			strtok(NULL, " \n");
+			sprintf(numCli, "%s", strtok(NULL, " \n"));
+		}
+		if (strncmp("listen_port", line, strlen("listen_port")) == 0)
+		{
+			strtok(line, " \n");
+			strtok(NULL, " \n");
+			sprintf(numPort, "%s", strtok(NULL, " \n"));
+		}
+		if (strncmp("server_signature", line, strlen("server_signature")) == 0)
+		{
+			strtok(line, " \n");
+			strtok(NULL, " \n");
+			sprintf(name, "%s", strtok(NULL, " \n"));
+		}
+	}
+
+	printf("\n%s\n%s\n%s\n%s\n",route, numCli, numPort, name);
+	info = initserverSocket(LISTEN, atoi(numPort));
 	if (!info)
-		exit(0);
+		exit(-1);
 
-	//#####################
+
+	// #####################
 	pthread_t *threads;
-	threads = (pthread_t*) malloc(sizeof(pthread_t)*2);
+	threads = (pthread_t*) malloc(sizeof(pthread_t)* atoi(numCli));
 
-	for(int i = 0;i<2;i++)
+	for (int i = 0; i < atoi(numCli); i++)
 	{
 		pthread_create(&threads[i], NULL,pthread_main, (void *) &info[0]);
 	}
-	for(int i=0;i<2;i++)
+	for (int i = 0; i < atoi(numCli); i++)
 	{
 		pthread_join(threads[i], NULL);
 	}

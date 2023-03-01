@@ -31,6 +31,8 @@
 #include <sys/sendfile.h>
 
 #define MAX 8000
+#define MAX_STRING 1024
+#define MAX_CHAR 20
 #define MAX_LISTENERS 5
 #define PORT 8080
 #define SA struct sockaddr
@@ -50,11 +52,11 @@
 #define LISTEN  4
 #define ACCEPT  5
 
-int *initserverSocket(int flag);
+int *initserverSocket(int flag, int port);
 int freeSocket(int *info);
 int createSocket();
-int bindSocket(int socketfd);
+int bindSocket(int socketfd, int port);
 int listenSocket(int socketfd);
 int acceptClient(int socketfd);
-int connectSocket(int socketfd);
+int connectSocket(int socketfd, int port);
 #endif

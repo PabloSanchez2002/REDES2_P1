@@ -4,12 +4,13 @@
 #include "../inc/picohttpparser.h"
 
 int execute_script(){
-	
+
 }
 
 void process_GET(int connfd, size_t path_len, char *source, char* method)
 {
-	char buf[MAX_STRING], method2[10];
+	char buf[MAX_STRING], method2[MAX_CHAR], py[MAX_STRING]= ".py", php[MAX_CHAR]= ".php";
+
 	struct stat st;
 	int f;
 	//###############
@@ -20,6 +21,12 @@ void process_GET(int connfd, size_t path_len, char *source, char* method)
 		path = strtok(source, "?");
 		trash = strtok(NULL, strcat(method, "="));
 		value = strtok(NULL, method);
+
+		if (strstr(source, py) != NULL || strstr(source, php) != NULL)
+		{
+			/* Hacemos el ejecutar fichero y tal */
+			
+		}
 	}
 	//################
 
@@ -58,13 +65,7 @@ void process_GET(int connfd, size_t path_len, char *source, char* method)
 
 void process_POST(int connfd, size_t path_len, char *source, char *method)
 {
-	char* path, *value;
-	printf("%s\n\n", source);
-	if (strrchr(source, '?') != NULL)
-	{
-		path = strtok(source, "?");
-		printf("#######%s", path);
-	}
+	write(connfd, "No se que hacer aqui xdd\r\n\r\n", strlen("No se que hacer aqui xdd\r\n\r\n"));
 }
 void process_OPTIONS(int connfd)
 {

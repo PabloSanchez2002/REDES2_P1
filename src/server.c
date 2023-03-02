@@ -3,29 +3,87 @@
 #include "../inc/main.h"
 #include "../inc/picohttpparser.h"
 
-int execute_script(){
+int execute_script(char *path, char *arg, int extension, char *script_response)
+{
+	char command[MAX_CHAR], buffer[MAX_STRING];
+	int length;
+	FILE *script;
 
+	if(extension == 0)
+	{
+		sprintf(command, "php %s %s", path, arg);
+	}
+	else if (extension == 1)
+	{
+		sprintf(command, "python3 %s %s", path, arg);
+	}
+
+	/*Execute script with popen*/
+	printf("Ejecutamos esto >>> %s\n\n", command);
+	script = popen(command, "r");
+	if (!script)
+	{
+		//syslog(LOG_ERR, "Error executing script");
+		return -1;
+	}
+
+	/*Read output of script*/
+	while (!feof(script)){
+		length = fread(buffer, sizeof(char), MAX_STRING, script);
+		if (length < 0)
+		{
+			//syslog(LOG_ERR, "Error while reading the file");
+			pclose(script);
+			return -1;
+		}
+		else if (length > 0)
+		{
+			/*Store script response*/
+			strncat(script_response, buffer, length);
+			strcat(script_response, "\n");
+		}
+	}
+	printf("Output del programa: %s\n\n", script_response);
+	pclose(script);
+	return 0;
+}
+
+void process_404_NotFound(int connfd)
+{
+	write(connfd, "HTTP/1.1 404 Not Found\r\n\r\n", strlen("HTTP/1.1 404 Not Found\r\n\r\n"));
+}
+
+void process_400_BadRequest(int connfd)
+{
+	write(connfd, "HTTP/1.1 400 Bad Request\r\n\r\n", strlen("HTTP/1.1 400 Bad Request\r\n\r\n"));
 }
 
 void process_GET(int connfd, size_t path_len, char *source, char* method)
 {
-	char buf[MAX_STRING], method2[MAX_CHAR], py[MAX_STRING]= ".py", php[MAX_CHAR]= ".php";
+	char buf[MAX_STRING], method2[MAX_CHAR], py[MAX_STRING] = ".py", php[MAX_CHAR] = ".php", script_response[MAX_STRING] = "";
 
 	struct stat st;
 	int f;
 	//###############
 	char *path, *value = NULL, *trash;
 	printf("%s\n\n", source);
+
+	// Check if there are any arguments on path
 	if (strrchr(source, '?') != NULL)
 	{
 		path = strtok(source, "?");
 		trash = strtok(NULL, strcat(method, "="));
 		value = strtok(NULL, method);
 
-		if (strstr(source, py) != NULL || strstr(source, php) != NULL)
+		if (strstr(path, py) != NULL)
 		{
 			/* Hacemos el ejecutar fichero y tal */
-			
+			execute_script(path, value, 1, script_response);
+		}
+		else if (strstr(path, php) != NULL)
+		{
+			/* Hacemos el ejecutar fichero y tal */
+			execute_script(path, value, 0, script_response);
 		}
 	}
 	//################
@@ -63,10 +121,13 @@ void process_GET(int connfd, size_t path_len, char *source, char* method)
 	close(f);
 }
 
+
+
 void process_POST(int connfd, size_t path_len, char *source, char *method)
 {
 	write(connfd, "No se que hacer aqui xdd\r\n\r\n", strlen("No se que hacer aqui xdd\r\n\r\n"));
 }
+
 void process_OPTIONS(int connfd)
 {
 	// curl -X OPTIONS localhost:8080 -i
@@ -118,20 +179,19 @@ void processRequest(int connfd)
 	printf("request is %d bytes long\n", pret);
 	printf("method is %.*s\n", (int)method_len, method);
 	printf("path is %.*s\n", (int)path_len, path);
-	printf("HTTP version is 1.%d\n", minor_version);
-	printf("headers:\n");
-	for (int i = 0; i != num_headers; ++i)
-	{
-		printf("%.*s: %.*s\n", (int)headers[i].name_len, headers[i].name,
-			   (int)headers[i].value_len, headers[i].value);
-	}
+	//printf("HTTP version is 1.%d\n", minor_version);
+	//printf("headers:\n");
+	//for (int i = 0; i != num_headers; ++i)
+	//{
+	//	printf("%.*s: %.*s\n", (int)headers[i].name_len, headers[i].name,
+	//		   (int)headers[i].value_len, headers[i].value);
+	//}
 
 	/*Store request method*/
 	sprintf(method2, "%.*s", (int)method_len, method);
 	strncat(source, path, (int)path_len);
 
 	/*Calls pertinent function*/
-	
 	if (strcmp(method2, "GET") == 0)
 	{
 		process_GET(connfd, path_len, source, method2);
@@ -147,7 +207,7 @@ void processRequest(int connfd)
 	}
 	else
 	{
-		//process_unsupported();
+		process_400_BadRequest(connfd);
 	}
 	
 }

@@ -131,7 +131,7 @@ int connectSocket(int socketfd, int port)
 int *serverSocket(int flag, int port)
 {
 
-    int *ret = (int *) malloc(sizeof(int)*2);
+    int *ret = (int *) malloc(sizeof(int)*3);
     if (!ret)
         return NULL;
     ret[0] = 0;

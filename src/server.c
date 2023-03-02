@@ -3,14 +3,91 @@
 #include "../inc/main.h"
 #include "../inc/picohttpparser.h"
 
-// Function designed for chat between client and server.
-void func(int connfd)
+int execute_script(){
+	
+}
+
+void process_GET(int connfd, size_t path_len, char *source, char* method)
 {
-	char buf[4096], method2[10];
+	char buf[MAX_STRING], method2[10];
+	struct stat st;
+	int f;
+	//###############
+	char *path, *value = NULL, *trash;
+	printf("%s\n\n", source);
+	if (strrchr(source, '?') != NULL)
+	{
+		path = strtok(source, "?");
+		trash = strtok(NULL, strcat(method, "="));
+		value = strtok(NULL, method);
+	}
+	//################
+
+	if ((int)path_len > 1)
+	{
+		f = open(source, O_RDONLY);
+		if (f == -1)
+		{
+			printf("%s FALLO\n", source);
+		}
+	}
+	else
+	{
+		f = open("templates/index.html", O_RDONLY);
+		if (f == -1)
+		{
+			printf("templates FALLO\n");
+		}
+	}
+
+	fstat(f, &st);
+	char buffer[MAX_STRING];
+	char size[MAX_STRING];
+	sprintf(buffer, "HTTP/1.1 200 OK\r\n");
+	strcat(buffer, "Date: Tue, 08 Sep 2020 00:53:20 GMT\r\n");
+	strcat(buffer, "Server: Apache/2.4.6 (CentOS)\r\n");
+	strcat(buffer, "Last-Modified: Tue, 01 Mar 2016 18:57:50 GMT\r\n");
+	strcat(buffer, "Accept-Ranges: bytes\r\n");
+	printf(size, "Content-Length: %li\r\n", st.st_size);
+	strcat(buffer, size);
+	strcat(buffer, "Content-Type: text/html\r\n\r\n");
+	write(connfd, buffer, strlen(buffer));
+	sendfile(connfd, f, NULL, st.st_size);
+	close(f);
+}
+
+void process_POST(int connfd, size_t path_len, char *source, char *method)
+{
+	char* path, *value;
+	printf("%s\n\n", source);
+	if (strrchr(source, '?') != NULL)
+	{
+		path = strtok(source, "?");
+		printf("#######%s", path);
+	}
+}
+void process_OPTIONS(int connfd)
+{
+	// curl -X OPTIONS localhost:8080 -i
+	char buffer[500];
+	sprintf(buffer, "HTTP/1.1 204 No Content\r\n");
+	strcat(buffer, "Allow: OPTIONS, GET, POST\r\n");
+	strcat(buffer, "Date: Tue, 08 Sep 2020 00:53:20 GMT\r\n");
+	strcat(buffer, "Server: Apache 2.4.6 (CentOS)\r\n");
+	strcat(buffer, "Last-Modified: Tue, 01 Mar 2016 18:57:50 GMT\r\n");
+	strcat(buffer, "Accept-Ranges: bytes\r\n");
+	strcat(buffer, "Content-Length: 0\r\n");
+	strcat(buffer, "Content-Type: text/html\r\n\r\n");
+	write(connfd, buffer, strlen(buffer));
+}
+
+// Function designed for chat between client and server.
+void processRequest(int connfd)
+{
+	char buf[4096], method2[10], source[MAX_STRING] = "templates";
 	const char *method, *path;
 	int pret, minor_version, f, size;
 	struct phr_header headers[100];
-	struct stat st;
 	size_t buflen = 0, prevbuflen = 0, method_len, path_len, num_headers;
 	ssize_t rret;
 	
@@ -50,58 +127,28 @@ void func(int connfd)
 
 	/*Store request method*/
 	sprintf(method2, "%.*s", (int)method_len, method);
-	
+	strncat(source, path, (int)path_len);
+
 	/*Calls pertinent function*/
-	/*
+	
 	if (strcmp(method2, "GET") == 0)
 	{
-		//process_GET();
+		process_GET(connfd, path_len, source, method2);
 	}
 	else if (strcmp(method2, "POST") == 0)
 	{
-		//process_POST();
+
+		process_POST(connfd, path_len, source, method2);
 	}
-	else if (strcmp(method2, "OPTIONS") == 0)
+	else if (strcmp(method2, "OPTIONS") == 0) 
 	{
-		//process_OPTIONS();
+		process_OPTIONS(connfd);
 	}
 	else
 	{
 		//process_unsupported();
 	}
-	*/
-	char source[MAX_STRING] = "templates";
-
-	if ((int)path_len > 1)
-	{
-		printf("\n\nPath:%.*s\n\n", (int)path_len, path);
-		strncat(source, path, (int)path_len);
-		f = open(source, O_RDONLY);
-		if(f == -1){
-			printf("%s FALLO\n", source);
-		}
-	}
-	else
-	{
-		f = open("templates/index.html", O_RDONLY);
-		if (f == -1)
-		{
-			printf("templates FALLO\n");
-		}
-	}
-
-	fstat(f, &st);
-	char buffer[500];
-	sprintf(buffer, "HTTP/1.1 200 OK\r\n\
-Date: Tue, 08 Sep 2020 00:53:20 GMT\r\n\
-Server: Apache/2.4.6 (CentOS)\r\n\
-Last-Modified: Tue, 01 Mar 2016 18:57:50 GMT\r\n\
-Accept-Ranges: bytes\r\n\
-Content-Length: %li\r\n\
-Content-Type: text/html\r\n\r\n", st.st_size);
-	write(connfd, buffer, strlen(buffer));
-	sendfile(connfd, f, NULL, st.st_size);
-	close(f);
+	
 }
 
 
@@ -111,7 +158,7 @@ void *pthread_main(void *socketfd)
 	int connfd;
 	while(1){
 		connfd = acceptClient(serverfd);
-		func(connfd);
+		processRequest(connfd);
 		close(connfd);
 	}
 }
@@ -158,12 +205,11 @@ int main(){
 		}
 	}
 
-	//printf("\n%s\n%s\n%s\n%s\n",route, numCli, numPort, name);
 	info = initserverSocket(LISTEN, atoi(numPort));
 	if (!info)
 		exit(-1);
 
-
+	//Los hilos pa
 	// #####################
 	pthread_t *threads;
 	threads = (pthread_t*) malloc(sizeof(pthread_t)* atoi(numCli));

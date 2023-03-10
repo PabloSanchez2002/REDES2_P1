@@ -21,8 +21,9 @@ int createSocket()
         return BASIC_ERROR;
 	}
 	else
-		printf("Creating socket:      \033[1;92m✓\033[0;39m\n");
-    setsockopt(socketfd, 0, SO_REUSEADDR, NULL, 0);
+		syslog(LOG_USER,"Creating socket:      \033[1;92m✓\033[0;39m\n");
+    if (setsockopt(socketfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0)
+        return BASIC_ERROR;
     return socketfd;
 }
 
@@ -42,7 +43,7 @@ int bindSocket(int socketfd, int port)
         return BASIC_ERROR;
 	}
 	else
-		printf("Binding socket:       \033[1;92m✓\033[0;39m\n");
+		syslog(LOG_USER,"Binding socket:       \033[1;92m✓\033[0;39m\n");
     return OK;
 }
 /**
@@ -57,7 +58,7 @@ int listenSocket(int socketfd)
         return BASIC_ERROR;
 	}
 	else
-		printf("Starting to listen:   \033[1;92m✓\033[0;39m\n");
+		syslog(LOG_USER,"Starting to listen:   \033[1;92m✓\033[0;39m\n");
 
     return OK;
 
@@ -75,15 +76,15 @@ int acceptClient(int socketfd)
 	struct sockaddr_in cli;
     len = sizeof(cli);
 
-	printf("Accepting client:     "); 
+	syslog(LOG_USER,"Accepting client:     "); 
     fflush(stdout);
 	socketconn = accept(socketfd, (SA*)&cli, &len);
 	if (socketconn < 0) {
-		printf("\033[0;91m✕\033[0;39m\n");
+		syslog(LOG_USER,"\033[0;91m✕\033[0;39m\n");
         return BASIC_ERROR;
 	}
 	else
-		printf("\033[1;92m✓\033[0;39m\n");
+		syslog(LOG_USER,"\033[1;92m✓\033[0;39m\n");
     return socketconn;
 
 }
@@ -108,7 +109,7 @@ int connectSocket(int socketfd, int port)
         return BASIC_ERROR;
 	}
 	else
-		printf("Connecting to socket: \033[1;92m✓\033[0;39m\n");
+		syslog(LOG_USER,"Connecting to socket: \033[1;92m✓\033[0;39m\n");
     return OK;
 }
 /**
@@ -176,7 +177,7 @@ int freeSocket(int *info)
 {
     if (!info)
     {
-        printf("\033[0;91mError: \033[0;39mNull pointer\n");
+        syslog(LOG_USER,"\033[0;91mError: \033[0;39mNull pointer\n");
         return BASIC_ERROR;
     }
     close(info[0]);
@@ -194,42 +195,42 @@ int *initserverSocket(int flag, int port)
     int *ret;
     if (flag < 1 || flag > 5)
     {
-        printf("\033[0;91mError: \033[0;39m Wrong Flag\n");
+        syslog(LOG_USER,"\033[0;91mError: \033[0;39m Wrong Flag\n");
         return NULL;
     }
     if(!(ret=serverSocket(flag, port)))
     {
-        printf("\033[0;91mError: \033[0;39m Couldn't allocate memory\n");
+        syslog(LOG_USER,"\033[0;91mError: \033[0;39m Couldn't allocate memory\n");
         return NULL;
     }
     switch (ret[1])
     {
     case CREATESOCKETERR:
-        printf("\033[0;91mError: \033[0;39mCouldn't create socket\n");
+        syslog(LOG_USER,"\033[0;91mError: \033[0;39mCouldn't create socket\n");
         free(ret);
         return NULL;
     case BINDSOCKETERR:
-        printf("\033[0;91mError: \033[0;39mCouldn't bind socket\n");
+        syslog(LOG_USER,"\033[0;91mError: \033[0;39mCouldn't bind socket\n");
         close(ret[0]);
         free(ret);
         return NULL;
     case LISTENSOCKETERR:
-        printf("\033[0;91mError: \033[0;39mCouldn't start listening\n");
+        syslog(LOG_USER,"\033[0;91mError: \033[0;39mCouldn't start listening\n");
         close(ret[0]);
         free(ret);
         return NULL;
     case ACCEPTSOCKETERR:
-        printf("\033[0;91mError: \033[0;39mCouldn't accept client\n");
+        syslog(LOG_USER,"\033[0;91mError: \033[0;39mCouldn't accept client\n");
         close(ret[0]);
         free(ret);
         return NULL;
     case CONNECTSOCKETERR:
-        printf("\033[0;91mError: \033[0;39mCouldn't connect to socket\n");
+        syslog(LOG_USER,"\033[0;91mError: \033[0;39mCouldn't connect to socket\n");
         close(ret[0]);
         free(ret);
         return NULL;
     default:
-        printf("\033[1;92mEverything worked fine\033[0;39m\n");
+        syslog(LOG_USER,"\033[1;92mEverything worked fine\033[0;39m\n");
         return ret;
     }
 }

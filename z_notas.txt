@@ -1,10 +1,28 @@
-capítulo 30 libro!!
-setsockopt
+1.
+Lo que falta por hacer:
+    Si te vas a server.c línea 294 verás que pone:
+	    strcat(buffer, "Last-Modified: Tue, 01 Mar 2016 18:57:50 GMT\r\n");
+    ese Last Modified lo hemos puesto aleatoriamente, tienes que hacer que obtenga ese last modified del archivo (creo que es un campo de st)
 
-https://git.eps.uam.es/groups/redes2/2023/2321/02
+    https://stackoverflow.com/questions/10446526/get-last-modified-time-of-file-in-linux
 
-rm /dev/shm/nombredelsemaforo
+    Hay varias instancias de esa línea por lo cual el cambio que hagas lo tienes que hacer varias veces
 
-Necesario crear una documentación correcta.
 
-Crear comentarios con doxygen
+2.
+    Si te vas a la linea 297 verás que pone:
+	    strcat(buffer, "Content-Type: text/plain\r\n\r\n");
+    Ese content type lo hemos puesto aleatoriamente tienes que hacer que vea el final del archivo por ejemplo .png y según eso lo rellene con lo que lo tenga que rellenar
+    Para los scripts ya está rellenado correctamente aunque deberías de revisar si está bien.
+
+    Ver: 
+    https://moodle.uam.es/mod/book/view.php?id=2213632&chapterid=9185
+
+3.
+    El valgrind ya está pasado pero revisa que lo que hagas no altere ni de ningún error.
+
+4. 
+    Crea la documentación doxygen (ya está todo comentado, si creas alguna nueva función documentala) solo falta crear como tal la documentación
+
+5. 
+    Empezar la memoria(pon alguna cosita y yo la termino)

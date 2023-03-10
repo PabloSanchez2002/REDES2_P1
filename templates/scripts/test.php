@@ -10,6 +10,7 @@ echo "Recibido por STDIN:\n";
 while( $line = fgets( $f ) ) {
   echo $line;
 }
+echo "\n";
 echo "Fin de datos\n";
 
 

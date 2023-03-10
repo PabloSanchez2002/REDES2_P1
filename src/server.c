@@ -3,242 +3,482 @@
 #include "../inc/main.h"
 #include "../inc/picohttpparser.h"
 
-int execute_script(char *path, char *arg, int extension, char *script_response)
+pthread_t *threads;
+char numCli[SMALL_STRING];
+char name[SMALL_STRING];
+char route[SMALL_STRING];
+
+/**
+ * @brief its a hash that given the request it gives a certain number
+ * its only used to make clear code
+ *
+ * @param str the type of request
+ * @return int a number
+ */
+int hash(char *str)
 {
-	char command[MAX_CHAR], buffer[MAX_STRING];
-	int length;
-	FILE *script;
-
-	if(extension == 0)
-	{
-		sprintf(command, "php %s %s", path, arg);
-	}
-	else if (extension == 1)
-	{
-		sprintf(command, "python3 %s %s", path, arg);
-	}
-
-	/*Execute script with popen*/
-	printf("Ejecutamos esto >>> %s\n\n", command);
-	script = popen(command, "r");
-	if (!script)
-	{
-		//syslog(LOG_ERR, "Error executing script");
+	if (strcmp(str, GET) == 0)
+		return 0;
+	else if (strcmp(str, POST) == 0)
+		return 1;
+	else if (strcmp(str, OPTIONS) == 0)
+		return 2;
+	else
 		return -1;
-	}
+}
+/**
+ * @brief executes a script either python3 or php storing the output inside a file descriptor which is returned
+ *
+ * @param path the path to the script
+ * @param arg the arguments of the script
+ * @param extension python3 or php
+ * @return int file descriptor to the pipe where the output is stored
+ */
+int execute_script(char *path, char *arg, int extension)
+{
+	char command[MEDIUM_STRING];
+	pid_t pid;
+	int child_out[PIPE_TAM];
+	int child_in[PIPE_TAM];
 
-	/*Read output of script*/
-	while (!feof(script)){
-		length = fread(buffer, sizeof(char), MAX_STRING, script);
-		if (length < 0)
+	pipe(child_in);
+	pipe(child_out);
+	if (extension == PHP_NUM)
+		sprintf(command, "php %s ", path);
+	else if (extension == PY_NUM)
+		sprintf(command, "python3 %s", path);
+
+	pid = fork();
+	if (pid > 0)
+	{
+		close(child_in[READ]);
+		close(child_out[WRITE]);
+		write(child_in[WRITE], arg, strlen(arg));
+		close(child_in[WRITE]);
+		wait(NULL);
+	}
+	else
+	{
+		close(child_out[READ]);
+		close(child_in[WRITE]);
+		dup2(child_in[READ], STDIN_FILENO);
+		dup2(child_out[WRITE], STDOUT_FILENO);
+		if (extension == 0)
 		{
-			//syslog(LOG_ERR, "Error while reading the file");
-			pclose(script);
+			if (execlp("php", "php", path, (char *)0) == -1)
+			{
+				syslog(LOG_USER, "Error executing php script");
+				return -1;
+			}
+		}
+		else if (execlp("python3", "python3", path, (char *)0) == -1)
+		{
+
+			syslog(LOG_USER, "Error executing python3 script");
 			return -1;
 		}
-		else if (length > 0)
-		{
-			/*Store script response*/
-			strncat(script_response, buffer, length);
-			strcat(script_response, "\n");
-		}
+
+		exit(EXIT_SUCCESS);
 	}
-	printf("Output del programa: %s\n\n", script_response);
-	pclose(script);
-	return 0;
+	return child_out[READ];
 }
 
+/**
+ * @brief process a 404 request, which is the code for not found file
+ *
+ * @param connfd
+ */
 void process_404_NotFound(int connfd)
 {
 	write(connfd, "HTTP/1.1 404 Not Found\r\n\r\n", strlen("HTTP/1.1 404 Not Found\r\n\r\n"));
 }
 
+/**
+ * @brief process a 400 request which is the code for an unvalid request
+ *
+ * @param connfd the socket of the client
+ */
 void process_400_BadRequest(int connfd)
 {
 	write(connfd, "HTTP/1.1 400 Bad Request\r\n\r\n", strlen("HTTP/1.1 400 Bad Request\r\n\r\n"));
 }
 
-void process_GET(int connfd, size_t path_len, char *source, char* method)
+/**
+ * @brief Processes a GET request creating the response needed
+ *
+ * @param connfd  the socket of the client
+ * @param path_len  the size of the path
+ * @param source  extra info
+ */
+void process_GET(int connfd, size_t path_len, char *source)
 {
-	char buf[MAX_STRING], method2[MAX_CHAR], py[MAX_STRING] = ".py", php[MAX_CHAR] = ".php", script_response[MAX_STRING] = "";
-
+	char method[SMALL_STRING] = GET;
+	char buffer[BIG_STRING];
+	char extra[BIG_STRING];
+	char timevar[MEDIUM_STRING];
+	char *output;
+	char *path;
+	char *value;
+	char *trash;
 	struct stat st;
 	int f;
-	//###############
-	char *path, *value = NULL, *trash;
-	printf("%s\n\n", source);
+	long int size_int = 0;
+	time_t now = time(0);
+	struct tm tm = *gmtime(&now);
 
-	// Check if there are any arguments on path
+	strftime(timevar, sizeof(timevar), "%a, %d %b %Y %H:%M:%S %Z", &tm);
 	if (strrchr(source, '?') != NULL)
 	{
 		path = strtok(source, "?");
-		trash = strtok(NULL, strcat(method, "="));
-		value = strtok(NULL, method);
+		value = strtok(NULL,"=");
+		value = strtok(NULL,"=");
 
-		if (strstr(path, py) != NULL)
+		if (strstr(path, PHP_EXTENSION) != NULL)
 		{
-			/* Hacemos el ejecutar fichero y tal */
-			execute_script(path, value, 1, script_response);
+			f = execute_script(path, value, PHP_NUM);
+			if (f == -1)
+			{
+				syslog(LOG_USER, "The file requested does not exist\n");
+				process_404_NotFound(connfd);
+				return;
+			}
 		}
-		else if (strstr(path, php) != NULL)
+		else if (strstr(path, PY_EXTENSION) != NULL)
 		{
-			/* Hacemos el ejecutar fichero y tal */
-			execute_script(path, value, 0, script_response);
+			f = execute_script(path, value, PY_NUM);
+			if (f == -1)
+			{
+				syslog(LOG_USER, "The file requested does not exist\n");
+				process_404_NotFound(connfd);
+				return;
+			}
 		}
+		ioctl(f, FIONREAD, &size_int);
+		output = (char *)malloc(sizeof(char) * (size_int + 1));
+		sprintf(buffer, "HTTP/1.1 200 OK\r\n");
+		sprintf(extra,"Date: %s\r\n",timevar);
+		strcat(buffer,extra);
+		sprintf(extra,"Server: %s\r\n", name);
+		strcat(buffer,extra);
+		strcat(buffer, "Last-Modified: Tue, 01 Mar 2016 18:57:50 GMT\r\n");
+		sprintf(extra, "Content-Length: %li\r\n", size_int);
+		strcat(buffer, extra);
+		strcat(buffer, "Content-Type: text/plain\r\n\r\n");
+		write(connfd, buffer, strlen(buffer));
+		read(f, output, size_int);
+		output[size_int] = '\0';
+		write(connfd, output, strlen(output));
+		free(output);
+		close(f);
 	}
-	//################
-
-	if ((int)path_len > 1)
+	else
 	{
-		f = open(source, O_RDONLY);
-		if (f == -1)
+		if ((int)path_len > 1)
 		{
-			printf("%s FALLO\n", source);
+			f = open(source, O_RDONLY);
+			if (f == -1)
+			{
+				syslog(LOG_USER, "The file requested does not exist\n");
+				process_404_NotFound(connfd);
+				return;
+			}
+		}
+		else
+		{
+			f = open("templates/index.html", O_RDONLY);
+			if (f == -1)
+			{
+				syslog(LOG_USER, "The file requested does not exist\n");
+				process_404_NotFound(connfd);
+				return;
+			}
+		}
+		fstat(f, &st);
+		sprintf(buffer, "HTTP/1.1 200 OK\r\n");
+		sprintf(extra,"Date: %s\r\n",timevar);
+		strcat(buffer,extra);
+		sprintf(extra,"Server: %s\r\n", name);
+		strcat(buffer,extra);
+		strcat(buffer, "Last-Modified: Tue, 01 Mar 2016 18:57:50 GMT\r\n");
+		sprintf(extra, "Content-Length: %li\r\n", st.st_size);
+		strcat(buffer, extra);
+		strcat(buffer, "Content-Type: text/html\r\n\r\n");
+		write(connfd, buffer, strlen(buffer));
+		sendfile(connfd, f, NULL, st.st_size);
+		close(f);
+	}
+}
+
+/**
+ * @brief Processes a post request creating the response needed
+ *
+ * @param connfd  the socket of the client
+ * @param source it has the path of the file
+ * @param buff Contains de body of the request to get the variables of it
+ */
+void process_POST(int connfd, char *source, char *buff)
+{
+	char *path;
+	char *output;
+	char *variables;
+	char buffer[BIG_STRING];
+	char extra[BIG_STRING];
+	char timevar[MEDIUM_STRING];
+	long int size_int = 0;
+	int f;
+	int i;
+	time_t now = time(0);
+	struct tm tm = *gmtime(&now);
+	strftime(timevar, sizeof(timevar), "%a, %d %b %Y %H:%M:%S %Z", &tm);
+
+
+	variables = strtok(buff, "=");
+	variables = strtok(NULL, "=");
+
+	if (strrchr(source, '?') != NULL)
+	{
+		path = strtok(source, "?");
+
+		if (strstr(path, PHP_EXTENSION) != NULL)
+		{
+			f = execute_script(path, variables, PHP_NUM);
+			if (f == -1)
+			{
+				syslog(LOG_USER, "The file requested does not exist\n");
+				process_404_NotFound(connfd);
+				return;
+			}
+		}
+		if (strstr(path, PY_EXTENSION) != NULL)
+		{
+			f = execute_script(path, variables, PY_NUM);
+			if (f == -1)
+			{
+				syslog(LOG_USER, "The file requested does not exist\n");
+				process_404_NotFound(connfd);
+				return;
+			}
 		}
 	}
 	else
 	{
-		f = open("templates/index.html", O_RDONLY);
-		if (f == -1)
+		if (strstr(source, PY_EXTENSION) != NULL)
 		{
-			printf("templates FALLO\n");
+			f = execute_script(source, variables, 1);
+			if (f == -1)
+			{
+				syslog(LOG_USER, "The file requested does not exist\n");
+				process_404_NotFound(connfd);
+				return;
+			}
+		}
+		else if (strstr(source, PHP_EXTENSION) != NULL)
+		{
+			f = execute_script(source, variables, 0);
+			if (f == -1)
+			{
+				syslog(LOG_USER, "The file requested does not exist\n");
+				process_404_NotFound(connfd);
+				return;
+			}
 		}
 	}
 
-	fstat(f, &st);
-	char buffer[MAX_STRING];
-	char size[MAX_STRING];
+	ioctl(f, FIONREAD, &size_int);
+	output = (char *)malloc(sizeof(char) * (size_int + 1));
 	sprintf(buffer, "HTTP/1.1 200 OK\r\n");
-	strcat(buffer, "Date: Tue, 08 Sep 2020 00:53:20 GMT\r\n");
-	strcat(buffer, "Server: Apache/2.4.6 (CentOS)\r\n");
+	sprintf(extra, "Date: %s\r\n", timevar);
+	strcat(buffer, extra);
+	sprintf(extra,"Server: %s\r\n", name);
+	strcat(buffer,extra);
 	strcat(buffer, "Last-Modified: Tue, 01 Mar 2016 18:57:50 GMT\r\n");
-	strcat(buffer, "Accept-Ranges: bytes\r\n");
-	printf(size, "Content-Length: %li\r\n", st.st_size);
-	strcat(buffer, size);
-	strcat(buffer, "Content-Type: text/html\r\n\r\n");
+	sprintf(extra, "Content-Length: %li\r\n", size_int);
+	strcat(buffer, extra);
+	strcat(buffer, "Content-Type: text/plain\r\n\r\n");
 	write(connfd, buffer, strlen(buffer));
-	sendfile(connfd, f, NULL, st.st_size);
+	read(f, output, size_int);
+	output[size_int] = '\0';
+	write(connfd, output, strlen(output));
+	free(output);
 	close(f);
 }
 
-
-
-void process_POST(int connfd, size_t path_len, char *source, char *method)
-{
-	write(connfd, "No se que hacer aqui xdd\r\n\r\n", strlen("No se que hacer aqui xdd\r\n\r\n"));
-}
-
+/**
+ * @brief Processes a OPTIONS request, sending the options the server accepts
+ *
+ * @param connfd the open socketfd of the client
+ */
 void process_OPTIONS(int connfd)
 {
-	// curl -X OPTIONS localhost:8080 -i
-	char buffer[500];
+	char buffer[BIG_STRING];
+	char extra[BIG_STRING];
+	char timevar[MEDIUM_STRING];
+	time_t now = time(0);
+	struct tm tm = *gmtime(&now);
+	strftime(timevar, sizeof(time), "%a, %d %b %Y %H:%M:%S %Z", &tm);
+
+	strcat(buffer, "Accept-Ranges: bytes\r\n");
+
 	sprintf(buffer, "HTTP/1.1 204 No Content\r\n");
 	strcat(buffer, "Allow: OPTIONS, GET, POST\r\n");
-	strcat(buffer, "Date: Tue, 08 Sep 2020 00:53:20 GMT\r\n");
-	strcat(buffer, "Server: Apache 2.4.6 (CentOS)\r\n");
-	strcat(buffer, "Last-Modified: Tue, 01 Mar 2016 18:57:50 GMT\r\n");
-	strcat(buffer, "Accept-Ranges: bytes\r\n");
+	sprintf(extra, "Date: %s\r\n", timevar);
+	strcat(buffer, extra);
+	sprintf(extra,"Server: %s\r\n", name);
+	strcat(buffer,extra);
 	strcat(buffer, "Content-Length: 0\r\n");
 	strcat(buffer, "Content-Type: text/html\r\n\r\n");
 	write(connfd, buffer, strlen(buffer));
 }
 
-// Function designed for chat between client and server.
+/**
+ * @brief Procesa una petición de un cliente, a través de la función phr_parse_request obtenemos
+ * la petición parseada y de ahí descomponemos esta petición para devolver lo que se nos solicita
+ *
+ * @param connfd el socket del cliente abierto
+ */
 void processRequest(int connfd)
 {
-	char buf[4096], method2[10], source[MAX_STRING] = "templates";
-	const char *method, *path;
-	int pret, minor_version, f, size;
-	struct phr_header headers[100];
-	size_t buflen = 0, prevbuflen = 0, method_len, path_len, num_headers;
+	char buf[BIG_STRING];
+	char method2[SMALL_STRING];
+	char source[SMALL_STRING];
+	const char *method;
+	const char *path;
+	int pret;
+	int minor_version;
+	int f;
+	int size;
+	struct phr_header headers[MEDIUM_ARR];
+	size_t buflen;
+	size_t prevbuflen;
+	size_t method_len;
+	size_t path_len;
+	size_t num_headers;
 	ssize_t rret;
-	
-	while (1)
+
+	buflen = 0;
+	prevbuflen = 0;
+	strcpy(source,route);
+
+	while (TRUE)
 	{
-		/* read the request */
 		while ((rret = read(connfd, buf + buflen, sizeof(buf) - buflen)) == -1 && errno == EINTR)
 			;
 		if (rret <= 0)
 			return;
 		prevbuflen = buflen;
 		buflen += rret;
-		/* parse the request */
 		num_headers = sizeof(headers) / sizeof(headers[0]);
-		pret = phr_parse_request(buf, buflen, &method, &method_len, &path, &path_len,
-								 &minor_version, headers, &num_headers, prevbuflen);
+		pret = phr_parse_request(buf, buflen, &method, &method_len, &path, &path_len, &minor_version, headers, &num_headers, prevbuflen);
 		if (pret > 0)
-			break; /* successfully parsed the request */
+			break;
 		else if (pret == -1)
-			return; // ParseError;
-		/* request is incomplete, continue the loop */
+			return;
 		assert(pret == -2);
 		if (buflen == sizeof(buf))
-			return; // Request incomplete
+			return;
 	}
-
-	printf("request is %d bytes long\n", pret);
-	printf("method is %.*s\n", (int)method_len, method);
-	printf("path is %.*s\n", (int)path_len, path);
-	//printf("HTTP version is 1.%d\n", minor_version);
-	//printf("headers:\n");
-	//for (int i = 0; i != num_headers; ++i)
-	//{
-	//	printf("%.*s: %.*s\n", (int)headers[i].name_len, headers[i].name,
-	//		   (int)headers[i].value_len, headers[i].value);
-	//}
-
-	/*Store request method*/
 	sprintf(method2, "%.*s", (int)method_len, method);
-	strncat(source, path, (int)path_len);
-
-	/*Calls pertinent function*/
-	if (strcmp(method2, "GET") == 0)
+	strncat(source, path, (int)(path_len));
+	buf[buflen] = '\0';
+	switch (hash(method2))
 	{
-		process_GET(connfd, path_len, source, method2);
-	}
-	else if (strcmp(method2, "POST") == 0)
-	{
-
-		process_POST(connfd, path_len, source, method2);
-	}
-	else if (strcmp(method2, "OPTIONS") == 0) 
-	{
+	case 0:
+		process_GET(connfd, path_len, source);
+		break;
+	case 1:
+		process_POST(connfd, source, buf + pret);
+		break;
+	case 2:
 		process_OPTIONS(connfd);
-	}
-	else
-	{
+		break;
+	case -1:
 		process_400_BadRequest(connfd);
+		break;
 	}
-	
 }
 
-
+/**
+ * @brief Es la función principal que ejecutarán los hilos, en ella se quedarán a la espera de la llegada de un cliente, una vez que
+ * llegue el cliente
+ *
+ * @param socketfd descriptor de ficheros del socket
+ * @return void* aunque devuelve void * verdaderamente no necesitamos que devuelva nada
+ */
 void *pthread_main(void *socketfd)
 {
-	int serverfd = *((int *)socketfd);
+	int serverfd;
 	int connfd;
-	while(1){
+
+	serverfd = *((int *)socketfd);
+	while (1)
+	{
 		connfd = acceptClient(serverfd);
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+		if (connfd == BASIC_ERROR)
+		{
+			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+			continue;
+		}
 		processRequest(connfd);
 		close(connfd);
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+	}
+	return NULL;
+}
+/**
+ * @brief handler of the signal
+ *
+ */
+void handler()
+{
+	for (int i = 0; i < atoi(numCli); i++)
+	{
+		pthread_cancel(threads[i]);
 	}
 }
 
-int main(){
+/**
+ * @brief creates handlers of signals
+ *
+ * @return int
+ */
+int create_handlers(void)
+{
+	struct sigaction usr1;
+
+	usr1.sa_sigaction = handler;
+	sigemptyset(&(usr1.sa_mask));
+	sigaddset(&(usr1.sa_mask), SIGINT);
+	usr1.sa_flags = SA_SIGINFO;
+	if (sigaction(SIGINT, &usr1, NULL) < 0)
+	{
+		syslog(LOG_USER, "Error executing php script");
+		return (ERROR);
+	}
+	return (OK);
+}
+
+/**
+ * @brief Punto de entrada del servidor, lee la información del fichero de configuración e inicializa los hilos que se encargarán
+ * de manejar las peticiones de los clientes
+ *
+ * @return int codigo de estado según si ha salido correctamente o no
+ */
+int main()
+{
 
 	int *info;
-	char line[MAX_STRING], route[MAX_CHAR], name[MAX_CHAR];
-	char numCli[MAX_CHAR], numPort[MAX_CHAR];
+	char line[SMALL_STRING];
+	char numPort[SMALL_STRING];
 	FILE *fp;
 	fp = fopen("config.conf", "r");
-	if (fp == NULL)
+	if (!fp)
 	{
-		//syslog(LOG_ERR, "Error opening file server.conf: %d", errno);
+		syslog(LOG_USER, "Error openning conf file\n");
 		return -1;
 	}
-	
-	//Configuracion del servidor
-	while (fgets(line, MAX_STRING, fp))
+
+	while (fgets(line, SMALL_STRING, fp))
 	{
 		if (strncmp("server_root", line, strlen("server_root")) == 0)
 		{
@@ -246,19 +486,19 @@ int main(){
 			strtok(NULL, " \n");
 			sprintf(route, "%s", strtok(NULL, " \n"));
 		}
-		if (strncmp("max_clients", line, strlen("max_clients")) == 0)
+		else if (strncmp("max_clients", line, strlen("max_clients")) == 0)
 		{
 			strtok(line, " \n");
 			strtok(NULL, " \n");
 			sprintf(numCli, "%s", strtok(NULL, " \n"));
 		}
-		if (strncmp("listen_port", line, strlen("listen_port")) == 0)
+		else if (strncmp("listen_port", line, strlen("listen_port")) == 0)
 		{
 			strtok(line, " \n");
 			strtok(NULL, " \n");
 			sprintf(numPort, "%s", strtok(NULL, " \n"));
 		}
-		if (strncmp("server_signature", line, strlen("server_signature")) == 0)
+		else if (strncmp("server_signature", line, strlen("server_signature")) == 0)
 		{
 			strtok(line, " \n");
 			strtok(NULL, " \n");
@@ -270,21 +510,29 @@ int main(){
 	if (!info)
 		exit(-1);
 
-	//Los hilos pa
-	// #####################
-	pthread_t *threads;
-	threads = (pthread_t*) malloc(sizeof(pthread_t)* atoi(numCli));
-
-	for (int i = 0; i < atoi(numCli); i++)
+	threads = (pthread_t *)malloc(sizeof(pthread_t) * atoi(numCli));
+	if (!threads)
 	{
-		pthread_create(&threads[i], NULL,pthread_main, (void *) &info[0]);
+		syslog(LOG_USER, "Error allocating memory for the threads\n");
+		exit(-1);
 	}
-	for (int i = 0; i < atoi(numCli); i++)
+	if (create_handlers() != ERROR)
 	{
-		pthread_join(threads[i], NULL);
+		for (int i = 0; i < atoi(numCli); i++)
+			pthread_create(&threads[i], NULL, pthread_main, (void *)&info[0]);
+				
+		for (int i = 0; i < atoi(numCli); i++)
+			pthread_join(threads[i], NULL);
+		free(threads);
+		fclose(fp);
+		freeSocket(info);
+		exit(EXIT_SUCCESS);
 	}
-	// #####################
-
-	free(threads);
-	freeSocket(info);
+	else
+	{
+		fclose(fp);
+		free(threads);
+		freeSocket(info);
+		exit(EXIT_FAILURE);
+	}
 }

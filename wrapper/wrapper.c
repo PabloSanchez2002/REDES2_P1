@@ -1,7 +1,7 @@
 /**
  * @file wrapper.c
- * @author Álvaro Rodríguez, Pablo Sanchez
- * @brief 
+ * @author Álvaro Rodríguez & Pablo Sanchez
+ * @brief Wrapper for the creation, binding of sockets and more.
  * @version 0.1
  * @date 2023-02-16
  * 

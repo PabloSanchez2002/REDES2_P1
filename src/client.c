@@ -1,4 +1,12 @@
-
+/**
+ * @brief Implements the functionality associated with the client (not used).
+ *
+ * @file client.c
+ * @author Alvaro Rodriguez & Pablo Sanchez
+ * @version 1.0
+ * @date 13/03/2023
+ * @copyright GNU Public License
+ */
 #include "../inc/p1.h"
 
 void func(int sockfd)

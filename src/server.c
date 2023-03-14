@@ -1,3 +1,12 @@
+/**
+ * @brief Implements the functionality associated with the server and HTTP requests.
+ *
+ * @file server.c
+ * @author Alvaro Rodriguez & Pablo Sanchez
+ * @version 1.0
+ * @date 13/03/2023
+ * @copyright GNU Public License
+ */
 
 #include "../inc/p1.h"
 #include "../inc/main.h"
@@ -7,6 +16,33 @@ pthread_t *threads;
 char numCli[SMALL_STRING];
 char name[SMALL_STRING];
 char route[SMALL_STRING];
+
+/** @struct extension_map
+ *
+ *  @brief Holds the extension associated to a specific file
+ */
+typedef struct
+{
+	const char *extension;
+	const char *mime_type;
+} extension_map;
+
+extension_map extensions_types[] = {
+	{".txt", "text/plain"},
+	{".html", "text/html"},
+	{".htm", "text/html"},
+	{".gif", "image/gif"},
+	{".jpeg", "image/jpeg"},
+	{".jpg", "image/jpeg"},
+	{".mpeg", "video/mpeg"},
+	{".mpg", "video/mpeg"},
+	{".doc", "application/msword"},
+	{".docx", "application/msword"},
+	{".pdf", "application/pdf"},
+	{".py", "text/html"},
+	{".php", "text/html"},
+	{NULL, NULL},
+};
 
 /**
  * @brief its a hash that given the request it gives a certain number
@@ -116,15 +152,18 @@ void process_GET(int connfd, size_t path_len, char *source)
 	char buffer[BIG_STRING];
 	char extra[BIG_STRING];
 	char timevar[MEDIUM_STRING];
+	char exten[SMALL_STRING];
 	char *output;
 	char *path;
 	char *value;
 	char *trash;
-	struct stat st;
+	char *dot;
+	struct stat st, attr;
 	int f;
 	long int size_int = 0;
 	time_t now = time(0);
 	struct tm tm = *gmtime(&now);
+	extension_map *map = extensions_types;
 
 	strftime(timevar, sizeof(timevar), "%a, %d %b %Y %H:%M:%S %Z", &tm);
 	if (strrchr(source, '?') != NULL)
@@ -154,16 +193,34 @@ void process_GET(int connfd, size_t path_len, char *source)
 			}
 		}
 		ioctl(f, FIONREAD, &size_int);
+		stat(source, &attr);
+
+		/*Stores the extension of the file*/
+		dot = strrchr(source, '.');
+
+		/*Map the extension with the corresponding mime-type*/
+		while (map->extension)
+		{
+			if (strcmp(map->extension, dot) == 0)
+			{
+				sprintf(exten, "%s", map->mime_type);
+				break;
+			}
+			map++;
+		}
+
 		output = (char *)malloc(sizeof(char) * (size_int + 1));
 		sprintf(buffer, "HTTP/1.1 200 OK\r\n");
 		sprintf(extra,"Date: %s\r\n",timevar);
 		strcat(buffer,extra);
 		sprintf(extra,"Server: %s\r\n", name);
 		strcat(buffer,extra);
-		strcat(buffer, "Last-Modified: Tue, 01 Mar 2016 18:57:50 GMT\r\n");
+		sprintf(extra, "Last-Modified: %s GMT\r\n", ctime(&attr.st_mtime));
+		strcat(buffer, extra);
 		sprintf(extra, "Content-Length: %li\r\n", size_int);
 		strcat(buffer, extra);
-		strcat(buffer, "Content-Type: text/plain\r\n\r\n");
+		sprintf(extra, "Content-Type: %s\r\n\r\n", exten);
+		strcat(buffer, extra);
 		write(connfd, buffer, strlen(buffer));
 		read(f, output, size_int);
 		output[size_int] = '\0';
@@ -182,6 +239,17 @@ void process_GET(int connfd, size_t path_len, char *source)
 				process_404_NotFound(connfd);
 				return;
 			}
+			/*Stores the extension of the file*/
+			dot = strrchr(source, '.');
+			while (map->extension)
+			{
+				if (strcmp(map->extension, dot) == 0)
+				{
+					sprintf(exten, "%s", map->mime_type);
+					break;
+				}
+				map++;
+			}
 		}
 		else
 		{
@@ -192,17 +260,22 @@ void process_GET(int connfd, size_t path_len, char *source)
 				process_404_NotFound(connfd);
 				return;
 			}
+			strcpy(exten, "text/html");
 		}
+
 		fstat(f, &st);
+		stat(source, &attr);
 		sprintf(buffer, "HTTP/1.1 200 OK\r\n");
 		sprintf(extra,"Date: %s\r\n",timevar);
 		strcat(buffer,extra);
 		sprintf(extra,"Server: %s\r\n", name);
-		strcat(buffer,extra);
-		strcat(buffer, "Last-Modified: Tue, 01 Mar 2016 18:57:50 GMT\r\n");
+		strcat(buffer, extra);
+		sprintf(extra, "Last-Modified: %s GMT\r\n", ctime(&attr.st_mtime));
+		strcat(buffer, extra);
 		sprintf(extra, "Content-Length: %li\r\n", st.st_size);
 		strcat(buffer, extra);
-		strcat(buffer, "Content-Type: text/html\r\n\r\n");
+		sprintf(extra, "Content-Type: %s\r\n\r\n", exten);
+		strcat(buffer, extra);
 		write(connfd, buffer, strlen(buffer));
 		sendfile(connfd, f, NULL, st.st_size);
 		close(f);
@@ -221,10 +294,15 @@ void process_POST(int connfd, char *source, char *buff)
 	char *path;
 	char *output;
 	char *variables;
+	char *dot;
 	char buffer[BIG_STRING];
 	char extra[BIG_STRING];
 	char timevar[MEDIUM_STRING];
+	char exten[SMALL_STRING];
 	long int size_int = 0;
+	struct stat attr;
+	extension_map *map = extensions_types;
+
 	int f;
 	int i;
 	time_t now = time(0);
@@ -283,18 +361,32 @@ void process_POST(int connfd, char *source, char *buff)
 			}
 		}
 	}
+	/*Stores the extension of the file*/
+	dot = strrchr(source, '.');
+	while (map->extension)
+	{
+		if (strcmp(map->extension, dot) == 0)
+		{
+			sprintf(exten, "%s", map->mime_type);
+			break;
+		}
+		map++;
+	}
 
 	ioctl(f, FIONREAD, &size_int);
+	stat(source, &attr);
 	output = (char *)malloc(sizeof(char) * (size_int + 1));
 	sprintf(buffer, "HTTP/1.1 200 OK\r\n");
 	sprintf(extra, "Date: %s\r\n", timevar);
 	strcat(buffer, extra);
 	sprintf(extra,"Server: %s\r\n", name);
 	strcat(buffer,extra);
-	strcat(buffer, "Last-Modified: Tue, 01 Mar 2016 18:57:50 GMT\r\n");
+	sprintf(extra, "Last-Modified: %s GMT\r\n", ctime(&attr.st_mtime));
+	strcat(buffer, extra);
 	sprintf(extra, "Content-Length: %li\r\n", size_int);
 	strcat(buffer, extra);
-	strcat(buffer, "Content-Type: text/plain\r\n\r\n");
+	sprintf(extra, "Content-Type: %s\r\n\r\n", exten);
+	strcat(buffer, extra);
 	write(connfd, buffer, strlen(buffer));
 	read(f, output, size_int);
 	output[size_int] = '\0';
